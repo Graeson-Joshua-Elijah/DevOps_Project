@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD with Docker + Kubernetes + Terraform
 
 on:
   push:
@@ -8,46 +8,51 @@ on:
 
 env:
   IMAGE_NAME: flask-app
-  ACR_NAME: myacr1234
-  RESOURCE_GROUP: rg-devops
-  AKS_NAME: aks-devops
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: 📦 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: 🧪 Install dependencies & run tests
         run: |
+          echo "🔧 Installing requirements..."
           pip install -r app/requirements.txt
+          echo "🧪 Running tests..."
+          pytest -v app/src
+          echo "✅ Tests passed successfully!"
 
-      - name: Run unit tests
+      - name: 🐳 Build Docker image
         run: |
-          cd app && pytest -q
+          echo "⚙️ Building Docker image..."
+          docker build -t ${{ env.IMAGE_NAME }}:latest app
+          echo "✅ Image built successfully!"
+          docker images | grep ${{ env.IMAGE_NAME }}
 
-      - name: Log in to Azure
-        uses: azure/login@v2
+      - name: 🧱 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          terraform_version: 1.9.5
 
-      - name: Build and push Docker image to ACR
+      - name: 🧩 Terraform Init & Apply (Kubernetes Deploy)
         run: |
-          az acr login --name $ACR_NAME
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} app
-          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
+          echo "🚀 Starting Terraform deployment..."
+          cd terraform
+          terraform init -input=false
+          terraform apply -auto-approve
+          echo "✅ Terraform apply completed!"
+          terraform output
 
-      - name: Get AKS credentials
+      - name: ☸️ Check Kubernetes Deployment
         run: |
-          az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --overwrite-existing
-
-      - name: Deploy to AKS
-        run: |
-          kubectl set image deployment/flask-deployment flask-container=$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} --record
-          kubectl rollout status deployment/flask-deployment
+          echo "🔍 Checking Kubernetes resources..."
+          kubectl get pods
+          kubectl get svc
