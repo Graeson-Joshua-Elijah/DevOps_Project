@@ -1,0 +1,14 @@
+- name: Deploy app to AKS
+  hosts: localhost
+  connection: local
+  vars:
+    kubeconfig_path: "~/.kube/config"
+  tasks:
+    - name: Apply Kubernetes manifests
+      community.kubernetes.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition: "{{ lookup('file', item) }}"
+      loop:
+        - "../k8s/deployment.yaml"
+        - "../k8s/service.yaml"
