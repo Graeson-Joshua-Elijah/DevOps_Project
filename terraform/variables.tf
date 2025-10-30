@@ -10,7 +10,7 @@ variable "location" {
 
 variable "acr_name" {
   type    = string
-  default = "myacr1234"
+  default = "devops123"
 }
 
 variable "aks_name" {
