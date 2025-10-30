@@ -12,28 +12,29 @@ terraform {
   required_version = ">= 1.6.0"
 }
 
+# Azure Provider
 provider "azurerm" {
   features {}
 }
 
 # 1️⃣ Data source for existing Resource Group
 data "azurerm_resource_group" "rg" {
-  name = var.resource_group
+  name = "rg-devops"
 }
 
-# 2️⃣ Data source for existing Container Registry
+# 2️⃣ Data source for existing Azure Container Registry (ACR)
 data "azurerm_container_registry" "acr" {
-  name                = var.acr_name
+  name                = "devops123"
   resource_group_name = data.azurerm_resource_group.rg.name
 }
 
-# 3️⃣ Data source for existing AKS cluster
+# 3️⃣ Data source for existing AKS Cluster
 data "azurerm_kubernetes_cluster" "aks" {
-  name                = var.aks_name
+  name                = "aks-devops"
   resource_group_name = data.azurerm_resource_group.rg.name
 }
 
-# 4️⃣ Kubernetes Provider (from existing AKS cluster)
+# 4️⃣ Kubernetes Provider (connects to your AKS cluster)
 provider "kubernetes" {
   host                   = data.azurerm_kubernetes_cluster.aks.kube_config[0].host
   client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].client_certificate)
@@ -41,7 +42,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].cluster_ca_certificate)
 }
 
-# 5️⃣ Kubernetes Deployment
+# 5️⃣ Kubernetes Deployment for Flask App
 resource "kubernetes_deployment" "flask_app" {
   metadata {
     name = "flask-app"
@@ -68,6 +69,7 @@ resource "kubernetes_deployment" "flask_app" {
       spec {
         container {
           name  = "flask-app"
+          # ✅ Uses image from ACR
           image = "${data.azurerm_container_registry.acr.login_server}/flask-app:latest"
           port {
             container_port = 8080
@@ -78,7 +80,7 @@ resource "kubernetes_deployment" "flask_app" {
   }
 }
 
-# 6️⃣ Service (LoadBalancer)
+# 6️⃣ Kubernetes Service (LoadBalancer)
 resource "kubernetes_service" "flask_service" {
   metadata {
     name = "flask-service"
@@ -98,6 +100,8 @@ resource "kubernetes_service" "flask_service" {
   }
 }
 
+# 7️⃣ Output the public IP once deployed
 output "service_url" {
-  value = kubernetes_service.flask_service.status[0].load_balancer[0].ingress[0].ip
+  description = "Public IP of the deployed Flask App"
+  value       = kubernetes_service.flask_service.status[0].load_balancer[0].ingress[0].ip
 }
