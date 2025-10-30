@@ -1,58 +1,43 @@
-name: CI/CD with Docker + Kubernetes + Terraform
+name: CI/CD with Azure AKS + Terraform
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-env:
-  IMAGE_NAME: flask-app
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: 🧪 Install dependencies & run tests
+      - name: Install dependencies & test
         run: |
-          echo "🔧 Installing requirements..."
           pip install -r app/requirements.txt
-          echo "🧪 Running tests..."
-          pytest -v app/src
-          echo "✅ Tests passed successfully!"
+          pytest app/src
 
-      - name: 🐳 Build Docker image
-        run: |
-          echo "⚙️ Building Docker image..."
-          docker build -t ${{ env.IMAGE_NAME }}:latest app
-          echo "✅ Image built successfully!"
-          docker images | grep ${{ env.IMAGE_NAME }}
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 🧱 Setup Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.5
 
-      - name: 🧩 Terraform Init & Apply (Kubernetes Deploy)
+      - name: Initialize & Apply Terraform
         run: |
-          echo "🚀 Starting Terraform deployment..."
           cd terraform
           terraform init -input=false
-          terraform apply -auto-approve
-          echo "✅ Terraform apply completed!"
-          terraform output
-
-      - name: ☸️ Check Kubernetes Deployment
-        run: |
-          echo "🔍 Checking Kubernetes resources..."
-          kubectl get pods
-          kubectl get svc
+          terraform apply -auto-approve \
+            -var "resource_group=${{ secrets.RESOURCE_GROUP }}" \
+            -var "location=${{ secrets.LOCATION }}" \
+            -var "acr_name=${{ secrets.ACR_NAME }}" \
+            -var "aks_name=${{ secrets.AKS_NAME }}"

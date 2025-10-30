@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <h2>EasyBook</h2>
+        <a href="/">Home</a>
+        <a href="/book">Book Again</a>
+    </nav>
+
+    <div class="confirmation">
+        <h1>✅ Booking Confirmed!</h1>
+        <p>Thank you, <strong>{{ name }}</strong>!</p>
+        <p>Your booking is scheduled on <strong>{{ date }}</strong> at <strong>{{ time }}</strong>.</p>
+        <a href="/" class="btn">Back to Home</a>
+    </div>
+</body>
+</html>
